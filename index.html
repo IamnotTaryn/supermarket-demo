@@ -14,10 +14,13 @@
       --item-2-x: 65%;
       --item-2-y: 50%;
       --item-size: 70px;
-      --item-in-cart-size: 40px;
       --cart-track-top: 52%;
-      --cart-width: 110px;
-      --cart-height: 110px;
+      --cart-round1-width: 200px;
+      --cart-round1-height: 160px;
+      --cart-round2-width: 200px;
+      --cart-round2-height: 160px;
+      --cart-width: var(--cart-round1-width);
+      --cart-height: var(--cart-round1-height);
       --cart-size: var(--cart-width);
 
       /* === 动画时长 === */
@@ -30,6 +33,9 @@
       --reveal-to-highlight-delay: 1000ms;
       --correct-pause: 400ms;
       --rescue-pause: 1000ms;
+      --transition-pause: 1000ms;
+      --cart-exit-offset: 200px;
+      --cart-enter-duration: 1000ms;
 
       --node-1: 8%;
       --node-2: 27%;
@@ -42,6 +48,7 @@
       --node-border: #ff8c42;
       --node-text-color: #ff8c42;
       --node-show-number: 1;
+      --nodes-visible: 0;
       --nodes-bottom: 0px;
       --nodes-left: 0%;
       --nodes-right: 0%;
@@ -294,6 +301,7 @@
       align-items: center;
       justify-content: center;
       transform: translateX(-50%);
+      opacity: var(--nodes-visible);
     }
 
     .node-num {
@@ -329,25 +337,14 @@
       z-index: 10;
     }
 
-    .cart-image {
-      display: none;
+    .cart {
+      position: relative;
       width: var(--cart-width);
       height: var(--cart-height);
-      object-fit: contain;
-      pointer-events: none;
-    }
-
-    .cart-wrapper.has-cart-img .cart-image {
-      display: block;
-    }
-
-    .cart-wrapper.has-cart-img .cart-css {
-      display: none;
-    }
-
-    .cart-css {
-      width: var(--cart-width);
-      position: relative;
+      background-image: var(--cart-bg, none);
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
     }
 
     .cart-rim {
@@ -358,32 +355,32 @@
       border-bottom: none;
     }
 
+    .cart-wrapper.has-cart-img .cart-rim {
+      display: none;
+    }
+
     .cart-body {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      padding: 0;
+      background: transparent;
+      border: none;
+      pointer-events: none;
+    }
+
+    .cart-wrapper:not(.has-cart-img) .cart {
+      height: auto;
+      background-image: none;
+    }
+
+    .cart-wrapper:not(.has-cart-img) .cart-body {
+      position: relative;
+      inset: auto;
       min-height: calc(var(--cart-height) * 0.55);
       background: linear-gradient(180deg, #ff9f43 0%, #ff7b1a 100%);
       border: 2px solid #8b3d00;
       border-radius: 6px 6px 14px 14px;
-      padding: 6px 8px 10px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .cart-item {
-      font-size: var(--item-in-cart-size);
-      line-height: 1;
-      user-select: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .cart-item-img {
-      width: var(--item-in-cart-size);
-      height: var(--item-in-cart-size);
-      object-fit: contain;
     }
 
     .flying-item img {
@@ -568,14 +565,22 @@
 
     .position-tuner .tuner-collapsed-tab {
       display: none;
-      padding: 8px 14px;
+      padding: 10px 14px;
       border: 1px solid #ddd;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.95);
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 600;
       color: #333;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .position-tuner .tuner-collapsed-tab:hover {
+      background: #fff;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
     }
 
     .position-tuner.collapsed .tuner-collapsed-tab {
@@ -761,8 +766,7 @@
 
       <section class="track-area cart-track" aria-label="购物车轨道">
         <div class="cart-wrapper" id="cartWrapper">
-          <img class="cart-image" id="cartImage" alt="购物车" />
-          <div class="cart cart-css">
+          <div class="cart" id="cartEl">
             <div class="cart-rim" aria-hidden="true"></div>
             <div class="cart-body" id="cartBody"></div>
           </div>
@@ -822,7 +826,7 @@
     <button type="button" id="btnReset" class="btn-gray">重置</button>
   </aside>
 
-  <div id="positionTuner" class="position-tuner" aria-label="位置调节器">
+  <div id="positionTuner" class="position-tuner collapsed" aria-label="位置调节器">
     <button type="button" class="tuner-collapsed-tab" id="tunerCollapsedTab">🎛 调位置</button>
     <div class="tuner-body">
       <div class="tuner-header">
@@ -847,7 +851,10 @@
         apple: { color: 'assets/apple.png', silhouette: 'assets/apple-silhouette.png' },
         egg: { color: 'assets/egg.png', silhouette: 'assets/egg-silhouette.png' },
       },
-      cart: 'assets/cart.png',
+      cart: {
+        round1: 'assets/cart-round1.png',
+        round2: 'assets/cart-round2.png',
+      },
       shelfBg: 'assets/shelf.png',
       stageBg: 'assets/stage-bg.png', /* 仅氛围:墙/地板/装饰,不含节点条与数字 */
       titleBoard: 'assets/title.png',
@@ -868,7 +875,7 @@
     const assetProbeCache = new Map();
     const assetReady = {
       items: {},
-      cart: false,
+      cart: { round1: false, round2: false },
       shelfBg: false,
       stageBg: false,
       titleBoard: false,
@@ -905,24 +912,65 @@
           };
         })
       );
-      const results = await Promise.all([
-        probeImage(ASSETS.cart),
+      const [cartR1, cartR2, shelfOk, stageOk, titleOk] = await Promise.all([
+        probeImage(ASSETS.cart.round1),
+        probeImage(ASSETS.cart.round2),
         probeImage(ASSETS.shelfBg),
         probeImage(ASSETS.stageBg),
         probeImage(ASSETS.titleBoard),
       ]);
-      assetReady.cart = results[0];
-      assetReady.shelfBg = results[1];
-      assetReady.stageBg = results[2];
-      assetReady.titleBoard = results[3];
+      assetReady.cart = { round1: cartR1, round2: cartR2 };
+      assetReady.shelfBg = shelfOk;
+      assetReady.stageBg = stageOk;
+      assetReady.titleBoard = titleOk;
       console.log('素材探测完成', JSON.parse(JSON.stringify(assetReady)));
+    }
+
+    let currentCartRound = 1;
+
+    function syncCartDimensionsFromRound(round) {
+      const r = round === 2 ? 2 : 1;
+      const w = getCssVar(`--cart-round${r}-width`);
+      const h = getCssVar(`--cart-round${r}-height`);
+      document.documentElement.style.setProperty('--cart-width', w);
+      document.documentElement.style.setProperty('--cart-height', h);
+      document.documentElement.style.setProperty('--cart-size', w);
+    }
+
+    function resolveCartImageUrl(round) {
+      const r = round === 2 ? 2 : 1;
+      const primary = r === 2 ? ASSETS.cart.round2 : ASSETS.cart.round1;
+      const fallback = r === 2 ? ASSETS.cart.round1 : ASSETS.cart.round2;
+      const primaryReady = r === 2 ? assetReady.cart.round2 : assetReady.cart.round1;
+      const fallbackReady = r === 2 ? assetReady.cart.round1 : assetReady.cart.round2;
+
+      if (primaryReady && isAssetPathValid(primary)) return primary;
+      if (fallbackReady && isAssetPathValid(fallback)) return fallback;
+      return null;
+    }
+
+    function setCartImage(round) {
+      const r = round === 2 ? 2 : 1;
+      currentCartRound = r;
+      const cartWrapper = document.getElementById('cartWrapper');
+
+      syncCartDimensionsFromRound(r);
+
+      const url = resolveCartImageUrl(r);
+      if (url) {
+        document.documentElement.style.setProperty('--cart-bg', `url('${url}')`);
+        cartWrapper.classList.add('has-cart-img');
+      } else {
+        document.documentElement.style.removeProperty('--cart-bg');
+        cartWrapper.classList.remove('has-cart-img');
+      }
+
+      console.log(`🛒 切换为第 ${r} 轮购物车: ${url || '(CSS 橙色兜底)'}`);
     }
 
     function applySceneAssets() {
       const stageEl = document.getElementById('stage');
       const stageBgImg = document.getElementById('stageBgImg');
-      const cartWrapper = document.getElementById('cartWrapper');
-      const cartImage = document.getElementById('cartImage');
       const titleBoard = document.getElementById('titleBoard');
 
       if (assetReady.stageBg && isAssetPathValid(ASSETS.stageBg)) {
@@ -931,14 +979,6 @@
       } else {
         stageBgImg.removeAttribute('src');
         stageEl.classList.remove('has-stage-bg');
-      }
-
-      if (assetReady.cart && isAssetPathValid(ASSETS.cart)) {
-        cartImage.src = ASSETS.cart;
-        cartWrapper.classList.add('has-cart-img');
-      } else {
-        cartImage.removeAttribute('src');
-        cartWrapper.classList.remove('has-cart-img');
       }
 
       if (assetReady.titleBoard && isAssetPathValid(ASSETS.titleBoard)) {
@@ -1029,6 +1069,7 @@
     const stWord = document.getElementById('stWord');
 
     let state = createInitialState();
+    let itemsInCart = [];
     let animating = false;
 
     function createInitialState() {
@@ -1040,7 +1081,6 @@
         items: ITEMS_ROUND_1.map((i) => ({ ...i })),
         shelfSlots: [0, 1, 2],
         revealed: false,
-        cartItems: [],
       };
     }
 
@@ -1057,6 +1097,44 @@
     function getDelayMs(varName) {
       const val = getCssVar(varName);
       return parseMs(val) || 0;
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    const PRAISE_PHRASES = [
+      'Good job!',
+      'Great!',
+      'Excellent!',
+      'Awesome!',
+      'Well done!',
+      'Nice!',
+      'Perfect!',
+      'Wonderful!',
+    ];
+
+    const TRANSITION_PHRASES = [
+      'Next!',
+      'Keep going!',
+      "Let's continue!",
+    ];
+
+    let lastPraise = null;
+
+    function pickPhrase(pool) {
+      if (pool.length <= 1) {
+        lastPraise = pool[0];
+        console.log('🎉 激励:', pool[0]);
+        return pool[0];
+      }
+      let pick;
+      do {
+        pick = pool[Math.floor(Math.random() * pool.length)];
+      } while (pick === lastPraise);
+      lastPraise = pick;
+      console.log('🎉 激励:', pick);
+      return pick;
     }
 
     function setSpeech(text) {
@@ -1116,27 +1194,8 @@
       stNode.textContent = String(node);
     }
 
-    function createCartItemElement(item) {
-      const el = document.createElement('span');
-      el.className = 'cart-item';
-      const key = item.key;
-      if (key && assetReady.items[key]?.color && isAssetPathValid(ASSETS.items[key].color)) {
-        const img = document.createElement('img');
-        img.className = 'cart-item-img';
-        img.src = ASSETS.items[key].color;
-        img.alt = item.word;
-        el.appendChild(img);
-      } else {
-        el.textContent = item.emoji;
-      }
-      return el;
-    }
-
     function renderCartItems() {
       cartBody.innerHTML = '';
-      state.cartItems.forEach((item) => {
-        cartBody.appendChild(createCartItemElement(item));
-      });
     }
 
     function updateStatus() {
@@ -1236,13 +1295,9 @@
     }
 
     function getCartRect() {
-      const cartImage = document.getElementById('cartImage');
-      if (cartWrapper.classList.contains('has-cart-img') && cartImage) {
-        const imgRect = cartImage.getBoundingClientRect();
-        if (imgRect.width > 0 && imgRect.height > 0) return imgRect;
-      }
-      const bodyRect = cartBody.getBoundingClientRect();
-      if (bodyRect.width > 0 && bodyRect.height > 0) return bodyRect;
+      const cartEl = document.getElementById('cartEl');
+      const cartRect = cartEl.getBoundingClientRect();
+      if (cartRect.width > 0 && cartRect.height > 0) return cartRect;
       return cartWrapper.getBoundingClientRect();
     }
 
@@ -1264,7 +1319,7 @@
       const startY = fromRect.top + fromRect.height / 2;
 
       const itemSize = parseFloat(getCssVar('--item-size')) || 70;
-      const cartItemSize = parseFloat(getCssVar('--item-in-cart-size')) || 40;
+      const cartItemSize = Math.round(itemSize * 0.57) || 40;
       const flyDuration = getDelayMs('--fly-duration');
       const useImg = visual.classList.contains('use-img');
 
@@ -1302,7 +1357,7 @@
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const cartRect = getCartRect();
-          const endX = cartRect.left + cartRect.width / 2 + state.cartItems.length * 8;
+          const endX = cartRect.left + cartRect.width / 2;
           const endY = cartRect.top + cartRect.height / 2;
           console.log('飞入起点:', startX, startY, '终点:', endX, endY);
 
@@ -1325,10 +1380,76 @@
       }, flyDuration);
     }
 
+    function flyItemToCartAsync(slotIndex) {
+      return new Promise((resolve) => flyItemToCart(slotIndex, resolve));
+    }
+
+    async function performCartCollect() {
+      const slotIndex = state.itemIndex;
+      const item = currentItem();
+      const nextNode = state.cartNode + 1;
+      console.log('购物车开始移动到节点', nextNode);
+      await moveCartToAsync(nextNode);
+      console.log('购物车到位,商品开始飞入');
+      await flyItemToCartAsync(slotIndex);
+      addToCart(item);
+      console.log('商品到达购物车(已消失)');
+      await wait(getDelayMs('--correct-pause'));
+    }
+
     function moveCartTo(node, onComplete) {
       const duration = getDelayMs('--cart-move-duration');
+      cartWrapper.style.transition = `left ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
       setCartNode(node);
       setTimeout(onComplete, duration);
+    }
+
+    function moveCartToAsync(node) {
+      return new Promise((resolve) => moveCartTo(node, resolve));
+    }
+
+    function exitCartOffScreen() {
+      return new Promise((resolve) => {
+        const exitDur = getDelayMs('--cart-move-duration');
+        cartWrapper.style.transition = `left ${exitDur}ms ease-in`;
+        cartWrapper.style.left = `calc(var(--node-5) + var(--cart-exit-offset))`;
+        setTimeout(() => {
+          cartWrapper.style.visibility = 'hidden';
+          resolve();
+        }, exitDur);
+      });
+    }
+
+    function enterCartFromLeft() {
+      return new Promise((resolve) => {
+        cartWrapper.style.transition = 'none';
+        cartWrapper.style.visibility = 'visible';
+        state.cartNode = 1;
+        nodes.forEach((n) => {
+          n.classList.toggle('active', Number(n.dataset.node) === 1);
+        });
+        stNode.textContent = '1';
+        cartWrapper.style.left = `calc(var(--node-1) - var(--cart-exit-offset))`;
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const enterDur = getDelayMs('--cart-enter-duration');
+            cartWrapper.style.transition = `left ${enterDur}ms ease-out`;
+            cartWrapper.style.left = 'var(--node-1)';
+            setTimeout(() => {
+              cartWrapper.style.transition = '';
+              resolve();
+            }, enterDur);
+          });
+        });
+      });
+    }
+
+    function resetCartMotionStyle() {
+      cartWrapper.style.transition = '';
+      cartWrapper.style.visibility = '';
+      cartWrapper.style.left = '';
+      setCartNode(state.cartNode);
     }
 
     function shakeSlot(slotIndex) {
@@ -1348,7 +1469,11 @@
     }
 
     function addToCart(item) {
-      state.cartItems.push({ key: item.key, emoji: item.emoji, word: item.word });
+      itemsInCart.push({
+        key: item.key,
+        emoji: item.emoji,
+        word: item.word,
+      });
     }
 
     function revealShelf() {
@@ -1357,21 +1482,32 @@
       updateStatus();
     }
 
-    function finishRound1() {
+    async function finishRound1() {
+      console.log('finishRound1 调用');
+      const endLine = 'Great! Round 1 complete!';
+      lastPraise = endLine;
+      setSpeech(endLine);
+      await wait(getDelayMs('--transition-pause'));
+      await moveCartToAsync(5);
+      await exitCartOffScreen();
       state.itemIndex = 0;
-      state.round = 1;
       setPhase('round2_pending');
-      setSpeech('Good job! Round 2. Say, go go go.');
+      setSpeech('Get ready for Round 2. Say go go go.');
       updateHighlight();
       updateStatus();
       animating = false;
       setButtons();
     }
 
-    function finishRound2() {
+    async function finishRound2() {
+      console.log('finishRound2 调用');
+      const endLine = 'Well done!';
+      lastPraise = endLine;
+      setSpeech(endLine);
+      await wait(getDelayMs('--transition-pause'));
       state.itemIndex = 0;
       setPhase('checkout');
-      setSpeech('Well done. Say, I love milk.');
+      setSpeech('Say, I love milk.');
       updateHighlight();
       updateStatus();
       animating = false;
@@ -1391,45 +1527,6 @@
       updateStatus();
       animating = false;
       setButtons();
-    }
-
-    function afterItemCollected() {
-      state.itemIndex += 1;
-      console.log('本轮已收商品数:', state.itemIndex, '| round:', state.round);
-
-      if (state.itemIndex >= 3) {
-        if (state.round === 1) {
-          finishRound1();
-        } else if (state.round === 2) {
-          finishRound2();
-        } else {
-          console.warn('round 异常, 无法判断轮次结束:', state.round);
-          animating = false;
-          setButtons();
-        }
-        return;
-      }
-
-      advanceToNextItem();
-    }
-
-    function collectItem() {
-      const slotIndex = state.itemIndex;
-      const item = currentItem();
-      const nextNode = state.cartNode + 1;
-      animating = true;
-      setButtons();
-
-      console.log('1. 购物车开始移动到节点', nextNode);
-      moveCartTo(nextNode, () => {
-        console.log('2. 购物车到位,商品开始飞入');
-        flyItemToCart(slotIndex, () => {
-          addToCart(item);
-          renderCartItems();
-          console.log('3. 商品到达购物车,进入下一题');
-          afterItemCollected();
-        });
-      });
     }
 
     function startRound1() {
@@ -1453,30 +1550,30 @@
       }, getDelayMs('--silhouette-reveal'));
     }
 
-    function startRound2() {
+    async function startRound2() {
       animating = true;
       setButtons();
       state.round = 2;
       state.items = ITEMS_ROUND_2.map((i) => ({ ...i }));
       state.shelfSlots = [0, 1, 2];
       state.itemIndex = 0;
-      state.cartItems = [];
+      itemsInCart = [];
       state.revealed = false;
-      renderCartItems();
-      setCartNode(1);
-      console.log('购物车移动到节点', 1);
       renderShelf();
+
+      setCartImage(2);
+      await enterCartFromLeft();
+
       revealShelf();
-      setTimeout(() => {
-        setTimeout(() => {
-          setPhase('r2_qa');
-          setSpeech("Look, what's this?");
-          updateHighlight();
-          updateStatus();
-          animating = false;
-          setButtons();
-        }, getDelayMs('--reveal-to-highlight-delay'));
-      }, getDelayMs('--silhouette-reveal'));
+      await wait(getDelayMs('--silhouette-reveal'));
+      await wait(getDelayMs('--reveal-to-highlight-delay'));
+
+      setPhase('r2_qa');
+      setSpeech("Look, what's this?");
+      updateHighlight();
+      updateStatus();
+      animating = false;
+      setButtons();
     }
 
     function handleGoGoGo() {
@@ -1492,16 +1589,41 @@
       console.warn('go go go 在当前 phase 无效:', state.phase);
     }
 
-    function handleReadDone() {
-      collectItem();
+    async function handleReadDone() {
+      animating = true;
+      setButtons();
+
+      if (state.itemIndex < 2) {
+        setSpeech(pickPhrase(PRAISE_PHRASES));
+        await wait(getDelayMs('--transition-pause'));
+        await performCartCollect();
+        state.itemIndex += 1;
+        advanceToNextItem();
+        return;
+      }
+
+      await performCartCollect();
+      await finishRound1();
     }
 
-    function handleCorrect() {
+    async function handleCorrect() {
       const item = currentItem();
       animating = true;
       setButtons();
-      setSpeech(`Yes! ${item.word}.`);
-      setTimeout(collectItem, getDelayMs('--correct-pause'));
+
+      if (state.itemIndex >= 2) {
+        setSpeech(`Yes! ${item.word}. ${pickPhrase(PRAISE_PHRASES)}`);
+        await wait(getDelayMs('--transition-pause'));
+        await performCartCollect();
+        await finishRound2();
+        return;
+      }
+
+      setSpeech(`Yes! ${item.word}. ${pickPhrase(PRAISE_PHRASES)}`);
+      await wait(getDelayMs('--transition-pause'));
+      await performCartCollect();
+      state.itemIndex += 1;
+      advanceToNextItem();
     }
 
     async function handleWrongR1() {
@@ -1510,7 +1632,14 @@
       setButtons();
       await shakeSlot(state.itemIndex);
       setSpeech(`Try again. It's ${item.word}. ${item.word}.`);
-      setTimeout(collectItem, getDelayMs('--rescue-pause'));
+      await wait(getDelayMs('--rescue-pause'));
+      await performCartCollect();
+      state.itemIndex += 1;
+      if (state.itemIndex < 3) {
+        advanceToNextItem();
+      } else {
+        await finishRound1();
+      }
     }
 
     async function handleWrongR2() {
@@ -1519,7 +1648,19 @@
       setButtons();
       await shakeSlot(state.itemIndex);
       setSpeech(`It's ${item.word}. ${item.word}.`);
-      setTimeout(collectItem, getDelayMs('--rescue-pause'));
+      await wait(getDelayMs('--rescue-pause'));
+      await performCartCollect();
+      state.itemIndex += 1;
+      if (state.itemIndex < 3) {
+        setPhase('r2_qa');
+        setSpeech("Look, what's this?");
+        updateHighlight();
+        updateStatus();
+        animating = false;
+        setButtons();
+      } else {
+        await finishRound2();
+      }
     }
 
     function spawnConfetti() {
@@ -1563,7 +1704,11 @@
 
     function reset() {
       animating = false;
+      lastPraise = null;
+      itemsInCart = [];
       state = createInitialState();
+      resetCartMotionStyle();
+      setCartImage(1);
       setPhase('initial');
       setSpeech("Look, a market! Let's shop. Say, go go go.");
       refreshUI();
@@ -1587,6 +1732,7 @@
     async function boot() {
       await initAssets();
       applySceneAssets();
+      setCartImage(1);
       setSpeech("Look, a market! Let's shop. Say, go go go.");
       refreshUI();
     }
@@ -1605,6 +1751,9 @@
           { name: '--reveal-to-highlight-delay', label: '点亮→高亮停顿', unit: 'ms', min: 0, max: 3000, step: 100, default: 1000 },
           { name: '--correct-pause', label: '答对后停顿', unit: 'ms', min: 0, max: 3000, step: 100, default: 400 },
           { name: '--rescue-pause', label: '答错兜底后停顿', unit: 'ms', min: 0, max: 3000, step: 100, default: 1000 },
+          { name: '--transition-pause', label: '衔接话后停顿', unit: 'ms', min: 0, max: 3000, step: 100, default: 1000 },
+          { name: '--cart-exit-offset', label: '购物车出画距离', unit: 'px', min: 100, max: 500, step: 10, default: 200 },
+          { name: '--cart-enter-duration', label: '购物车入画时长', unit: 'ms', min: 500, max: 2000, step: 100, default: 1000 },
         ],
       },
       {
@@ -1623,13 +1772,16 @@
         title: '【购物车】',
         vars: [
           { name: '--cart-track-top', label: '购物车轨道顶部', unit: '%', min: 0, max: 100, step: 0.5, default: 52 },
-          { name: '--cart-width', label: '购物车宽度', unit: 'px', min: 60, max: 250, step: 1, default: 110 },
-          { name: '--cart-height', label: '购物车高度', unit: 'px', min: 50, max: 200, step: 1, default: 110 },
+          { name: '--cart-round1-width', label: '第一轮车宽', unit: 'px', min: 60, max: 350, step: 1, default: 200 },
+          { name: '--cart-round1-height', label: '第一轮车高', unit: 'px', min: 50, max: 300, step: 1, default: 160 },
+          { name: '--cart-round2-width', label: '第二轮车宽', unit: 'px', min: 60, max: 350, step: 1, default: 200 },
+          { name: '--cart-round2-height', label: '第二轮车高', unit: 'px', min: 50, max: 300, step: 1, default: 160 },
         ],
       },
       {
         title: '【节点】',
         vars: [
+          { name: '--nodes-visible', label: '显示节点圆点', unit: 'switch', min: 0, max: 1, step: 1, default: 0 },
           { name: '--node-1', label: '节点 1 位置', unit: '%', min: 0, max: 100, step: 0.5, default: 8 },
           { name: '--node-2', label: '节点 2 位置', unit: '%', min: 0, max: 100, step: 0.5, default: 27 },
           { name: '--node-3', label: '节点 3 位置', unit: '%', min: 0, max: 100, step: 0.5, default: 46 },
@@ -1652,6 +1804,7 @@
       const n = Math.round(num * 10) / 10;
       if (unit === '%') return `${n}%`;
       if (unit === 'ms') return `${Math.round(n)}ms`;
+      if (unit === 'switch') return String(Math.round(n));
       return `${n}px`;
     }
 
@@ -1708,9 +1861,7 @@
         Object.entries(config).forEach(([varName, value]) => {
           if (value) document.documentElement.style.setProperty(varName, value);
         });
-        if (config['--cart-width']) {
-          document.documentElement.style.setProperty('--cart-size', config['--cart-width']);
-        }
+        syncCartDimensionsFromRound(currentCartRound);
         console.log('💾 已恢复上次保存的位置配置');
         return true;
       } catch (e) {
@@ -1723,8 +1874,17 @@
       const clamped = Math.min(cfg.max, Math.max(cfg.min, num));
       const cssVal = formatTunerValue(clamped, cfg.unit);
       document.documentElement.style.setProperty(cfg.name, cssVal);
-      if (cfg.name === '--cart-width') {
-        document.documentElement.style.setProperty('--cart-size', cssVal);
+      if (
+        cfg.name === '--cart-round1-width' ||
+        cfg.name === '--cart-round1-height'
+      ) {
+        if (currentCartRound === 1) syncCartDimensionsFromRound(1);
+      }
+      if (
+        cfg.name === '--cart-round2-width' ||
+        cfg.name === '--cart-round2-height'
+      ) {
+        if (currentCartRound === 2) syncCartDimensionsFromRound(2);
       }
       if (persist) scheduleSaveConfig();
       return clamped;
@@ -1807,11 +1967,20 @@
       });
 
       const tunerRoot = document.getElementById('positionTuner');
+      let panelExpanded = false;
+
+      function setTunerExpanded(expanded) {
+        panelExpanded = expanded;
+        tunerRoot.classList.toggle('collapsed', !expanded);
+      }
+
+      setTunerExpanded(false);
+
       document.getElementById('tunerFoldBtn').addEventListener('click', () => {
-        tunerRoot.classList.add('collapsed');
+        setTunerExpanded(false);
       });
       document.getElementById('tunerCollapsedTab').addEventListener('click', () => {
-        tunerRoot.classList.remove('collapsed');
+        setTunerExpanded(true);
       });
 
       const exportBtn = document.getElementById('tunerCopyBtn');
