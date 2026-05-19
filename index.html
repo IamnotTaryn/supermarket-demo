@@ -549,7 +549,7 @@
       }
       100% {
         opacity: 0;
-        transform: translateY(100vh) rotate(720deg);
+        transform: translateY(var(--confetti-fall, 100vh)) rotate(720deg);
       }
     }
 
@@ -816,12 +816,6 @@
       <button type="button" id="btnWrongR2" class="btn-red" disabled>学员答错·不响应 ✗</button>
     </div>
 
-    <div class="btn-group">
-      <div class="btn-group-label">④ 结束</div>
-      <button type="button" id="btnLoveMilk" class="btn-green" disabled>
-        学员说 I love milk ✓
-      </button>
-    </div>
 
     <button type="button" id="btnReset" class="btn-gray">重置</button>
   </aside>
@@ -1045,7 +1039,6 @@
       r1_reading: '第一轮·跟读',
       round2_pending: '等待第二轮',
       r2_qa: '第二轮·问答',
-      checkout: '结账',
       done: '已完成',
     };
 
@@ -1060,7 +1053,6 @@
     const btnCorrect = document.getElementById('btnCorrect');
     const btnWrongR1 = document.getElementById('btnWrongR1');
     const btnWrongR2 = document.getElementById('btnWrongR2');
-    const btnLoveMilk = document.getElementById('btnLoveMilk');
     const btnReset = document.getElementById('btnReset');
 
     const stPhase = document.getElementById('stPhase');
@@ -1192,6 +1184,7 @@
         n.classList.toggle('active', Number(n.dataset.node) === node);
       });
       stNode.textContent = String(node);
+      console.log('购物车走到节点', node);
     }
 
     function renderCartItems() {
@@ -1225,7 +1218,6 @@
       let wrongR1 = false;
       let answer = false;
       let wrongR2 = false;
-      let ilove = false;
 
       if (!animating) {
         switch (state.phase) {
@@ -1243,9 +1235,6 @@
             answer = true;
             wrongR2 = true;
             break;
-          case 'checkout':
-            ilove = true;
-            break;
           case 'done':
             break;
           default:
@@ -1258,7 +1247,6 @@
       btnWrongR1.disabled = !wrongR1;
       btnCorrect.disabled = !answer;
       btnWrongR2.disabled = !wrongR2;
-      btnLoveMilk.disabled = !ilove;
       btnReset.disabled = animating;
 
       console.log('按钮状态更新:', {
@@ -1269,7 +1257,6 @@
         wrongR1,
         answer,
         wrongR2,
-        ilove,
       });
     }
 
@@ -1359,7 +1346,10 @@
           const cartRect = getCartRect();
           const endX = cartRect.left + cartRect.width / 2;
           const endY = cartRect.top + cartRect.height / 2;
-          console.log('飞入起点:', startX, startY, '终点:', endX, endY);
+          console.log(
+            '飞入起点:', startX, startY,
+            '终点(购物车当前节点', state.cartNode, '):', endX, endY
+          );
 
           flying.style.left = `${endX}px`;
           flying.style.top = `${endY}px`;
@@ -1384,17 +1374,30 @@
       return new Promise((resolve) => flyItemToCart(slotIndex, resolve));
     }
 
-    async function performCartCollect() {
+    async function performRound1Collect() {
       const slotIndex = state.itemIndex;
       const item = currentItem();
-      const nextNode = state.cartNode + 1;
-      console.log('购物车开始移动到节点', nextNode);
-      await moveCartToAsync(nextNode);
-      console.log('购物车到位,商品开始飞入');
+      console.log('[R1装货] 商品飞入, 购物车停在节点', state.cartNode);
       await flyItemToCartAsync(slotIndex);
       addToCart(item);
       console.log('商品到达购物车(已消失)');
       await wait(getDelayMs('--correct-pause'));
+      const nextNode = state.cartNode + 1;
+      console.log('[R1装货] 购物车前进到节点', nextNode);
+      await moveCartToAsync(nextNode);
+    }
+
+    async function performRound2Collect() {
+      const slotIndex = state.itemIndex;
+      const item = currentItem();
+      console.log('[R2装货] 商品飞入,购物车停在节点', state.cartNode);
+      await flyItemToCartAsync(slotIndex);
+      addToCart(item);
+      console.log('商品到达购物车(已消失)');
+      await wait(getDelayMs('--correct-pause'));
+      const nextNode = state.cartNode + 1;
+      console.log('[R2装货] 装货完成,购物车前进到节点', nextNode);
+      await moveCartToAsync(nextNode);
     }
 
     function moveCartTo(node, onComplete) {
@@ -1411,10 +1414,12 @@
     function exitCartOffScreen() {
       return new Promise((resolve) => {
         const exitDur = getDelayMs('--cart-move-duration');
+        console.log('[R1出画] 购物车向右移出画面');
         cartWrapper.style.transition = `left ${exitDur}ms ease-in`;
         cartWrapper.style.left = `calc(var(--node-5) + var(--cart-exit-offset))`;
         setTimeout(() => {
           cartWrapper.style.visibility = 'hidden';
+          console.log('[R1出画] 购物车已隐藏');
           resolve();
         }, exitDur);
       });
@@ -1422,6 +1427,7 @@
 
     function enterCartFromLeft() {
       return new Promise((resolve) => {
+        console.log('[R2入画] 购物车置于左侧画面外,准备滑入');
         cartWrapper.style.transition = 'none';
         cartWrapper.style.visibility = 'visible';
         state.cartNode = 1;
@@ -1438,6 +1444,7 @@
             cartWrapper.style.left = 'var(--node-1)';
             setTimeout(() => {
               cartWrapper.style.transition = '';
+              console.log('[R2入画] 购物车已停在节点 1');
               resolve();
             }, enterDur);
           });
@@ -1482,14 +1489,50 @@
       updateStatus();
     }
 
+    const CONFETTI_HOLD_MS = 1500;
+
     async function finishRound1() {
-      console.log('finishRound1 调用');
-      const endLine = 'Great! Round 1 complete!';
-      lastPraise = endLine;
-      setSpeech(endLine);
-      await wait(getDelayMs('--transition-pause'));
-      await moveCartToAsync(5);
+      console.log('finishRound1 调用, 当前节点', state.cartNode);
+      if (state.cartNode !== 5) {
+        console.log('[R1结束] 1. 购物车走到节点 5');
+        await moveCartToAsync(5);
+      } else {
+        console.log('[R1结束] 1. 购物车已在节点 5');
+      }
+
+      console.log('[R1结束] 2. 激励文案 + 购物车撒花(同步)');
+      setSpeech(pickPhrase(PRAISE_PHRASES));
+      showConfettiAtCart();
+      await wait(CONFETTI_HOLD_MS);
+
+      console.log('[R1结束] 3. 购物车出画');
       await exitCartOffScreen();
+
+      console.log('[R1结束] 4. 调用 prepareRound2');
+      await prepareRound2();
+    }
+
+    async function prepareRound2() {
+      animating = true;
+      setButtons();
+
+      state.round = 2;
+      state.items = ITEMS_ROUND_2.map((i) => ({ ...i }));
+      state.shelfSlots = [0, 1, 2];
+      state.itemIndex = 0;
+      itemsInCart = [];
+      state.revealed = false;
+
+      console.log('[R2准备] 1. 切换第二轮购物车图片');
+      setCartImage(2);
+
+      console.log('[R2准备] 2. 商品换位并渲染为剪影');
+      renderShelf();
+
+      console.log('[R2准备] 3. 购物车从左侧入画(老师尚未说话)');
+      await enterCartFromLeft();
+
+      console.log('[R2准备] 4. 老师说 Get ready for Round 2. Say go go go!');
       state.itemIndex = 0;
       setPhase('round2_pending');
       setSpeech('Get ready for Round 2. Say go go go.');
@@ -1500,14 +1543,14 @@
     }
 
     async function finishRound2() {
-      console.log('finishRound2 调用');
-      const endLine = 'Well done!';
+      console.log('finishRound2 调用 (购物车已在节点', state.cartNode, ')');
+      const endLine = 'Well done! You did it!';
       lastPraise = endLine;
       setSpeech(endLine);
-      await wait(getDelayMs('--transition-pause'));
+      console.log('[R2结束] 台词 + 全屏撒花同步');
+      showConfettiFullScreen();
       state.itemIndex = 0;
-      setPhase('checkout');
-      setSpeech('Say, I love milk.');
+      setPhase('done');
       updateHighlight();
       updateStatus();
       animating = false;
@@ -1529,45 +1572,49 @@
       setButtons();
     }
 
-    function startRound1() {
+    async function startRound1Highlight() {
+      console.log('[R1启动] 学员 go go go');
       animating = true;
       setButtons();
       state.round = 1;
       state.itemIndex = 0;
       state.revealed = false;
       renderShelf();
+
+      console.log('[R1启动] 1. 商品剪影变彩色');
       revealShelf();
-      setTimeout(() => {
-        setTimeout(() => {
-          setPhase('r1_reading');
-          const item = currentItem();
-          setSpeech(`Read with me. ${item.word}.`);
-          updateHighlight();
-          updateStatus();
-          animating = false;
-          setButtons();
-        }, getDelayMs('--reveal-to-highlight-delay'));
-      }, getDelayMs('--silhouette-reveal'));
+      await wait(getDelayMs('--silhouette-reveal'));
+
+      console.log('[R1启动] 2. 购物车从节点 1 前进到节点 2');
+      await moveCartToAsync(2);
+
+      console.log('[R1启动] 3. 小停顿后高亮第一题');
+      await wait(getDelayMs('--reveal-to-highlight-delay'));
+
+      console.log('[R1启动] 4. 老师说 Read with me');
+      setPhase('r1_reading');
+      setSpeech(`Read with me. ${currentItem().word}.`);
+      updateHighlight();
+      updateStatus();
+      animating = false;
+      setButtons();
     }
 
-    async function startRound2() {
+    async function startRound2Highlight() {
+      console.log('[R2启动] 1. 学员 go go go — 商品剪影变彩色');
       animating = true;
       setButtons();
-      state.round = 2;
-      state.items = ITEMS_ROUND_2.map((i) => ({ ...i }));
-      state.shelfSlots = [0, 1, 2];
-      state.itemIndex = 0;
-      itemsInCart = [];
-      state.revealed = false;
-      renderShelf();
-
-      setCartImage(2);
-      await enterCartFromLeft();
 
       revealShelf();
       await wait(getDelayMs('--silhouette-reveal'));
+
+      console.log('[R2启动] 2. 购物车从节点 1 前进到节点 2');
+      await moveCartToAsync(2);
+
+      console.log('[R2启动] 3. 小停顿后高亮第一个');
       await wait(getDelayMs('--reveal-to-highlight-delay'));
 
+      console.log('[R2启动] 4. 老师说 Look, what\'s this?');
       setPhase('r2_qa');
       setSpeech("Look, what's this?");
       updateHighlight();
@@ -1579,11 +1626,11 @@
     function handleGoGoGo() {
       console.log('go go go 点击, 当前 phase:', state.phase);
       if (state.phase === 'initial') {
-        startRound1();
+        startRound1Highlight();
         return;
       }
       if (state.phase === 'round2_pending') {
-        startRound2();
+        startRound2Highlight();
         return;
       }
       console.warn('go go go 在当前 phase 无效:', state.phase);
@@ -1592,18 +1639,18 @@
     async function handleReadDone() {
       animating = true;
       setButtons();
+      console.log('[R1跟读完成] 题', state.itemIndex + 1, '/3, 当前节点', state.cartNode);
 
-      if (state.itemIndex < 2) {
-        setSpeech(pickPhrase(PRAISE_PHRASES));
-        await wait(getDelayMs('--transition-pause'));
-        await performCartCollect();
-        state.itemIndex += 1;
+      setSpeech(pickPhrase(PRAISE_PHRASES));
+      await wait(getDelayMs('--transition-pause'));
+      await performRound1Collect();
+
+      state.itemIndex += 1;
+      if (state.itemIndex < 3) {
         advanceToNextItem();
-        return;
+      } else {
+        await finishRound1();
       }
-
-      await performCartCollect();
-      await finishRound1();
     }
 
     async function handleCorrect() {
@@ -1612,16 +1659,18 @@
       setButtons();
 
       if (state.itemIndex >= 2) {
+        console.log('[R2答对] 最后一题, 当前节点', state.cartNode);
         setSpeech(`Yes! ${item.word}. ${pickPhrase(PRAISE_PHRASES)}`);
         await wait(getDelayMs('--transition-pause'));
-        await performCartCollect();
+        await performRound2Collect();
         await finishRound2();
         return;
       }
 
+      console.log('[R2答对] 当前节点', state.cartNode);
       setSpeech(`Yes! ${item.word}. ${pickPhrase(PRAISE_PHRASES)}`);
       await wait(getDelayMs('--transition-pause'));
-      await performCartCollect();
+      await performRound2Collect();
       state.itemIndex += 1;
       advanceToNextItem();
     }
@@ -1633,7 +1682,8 @@
       await shakeSlot(state.itemIndex);
       setSpeech(`Try again. It's ${item.word}. ${item.word}.`);
       await wait(getDelayMs('--rescue-pause'));
-      await performCartCollect();
+      console.log('[R1答错兜底] 商品飞入后购物车前进');
+      await performRound1Collect();
       state.itemIndex += 1;
       if (state.itemIndex < 3) {
         advanceToNextItem();
@@ -1649,7 +1699,8 @@
       await shakeSlot(state.itemIndex);
       setSpeech(`It's ${item.word}. ${item.word}.`);
       await wait(getDelayMs('--rescue-pause'));
-      await performCartCollect();
+      console.log('[R2答错兜底] 当前节点', state.cartNode);
+      await performRound2Collect();
       state.itemIndex += 1;
       if (state.itemIndex < 3) {
         setPhase('r2_qa');
@@ -1663,42 +1714,81 @@
       }
     }
 
-    function spawnConfetti() {
-      const colors = [
-        '#ff6b6b',
-        '#ffd93d',
-        '#6bcb77',
-        '#4d96ff',
-        '#ff85a2',
-        '#c77dff',
-        '#ffa94d',
-      ];
-      const stageRect = document.getElementById('stage').getBoundingClientRect();
+    const DEFAULT_CONFETTI_COLORS = [
+      '#ff6b6b',
+      '#ffd93d',
+      '#6bcb77',
+      '#4d96ff',
+      '#ff85a2',
+      '#c77dff',
+      '#ffa94d',
+    ];
 
-      for (let i = 0; i < 20; i++) {
+    function spawnConfetti(options = {}) {
+      const {
+        centerX = window.innerWidth / 2,
+        centerY = 0,
+        count = 20,
+        spreadX = 200,
+        spreadY = 40,
+        fallDistance = window.innerHeight,
+        duration = 2200,
+        colors = DEFAULT_CONFETTI_COLORS,
+      } = options;
+
+      for (let i = 0; i < count; i++) {
         const piece = document.createElement('div');
         piece.className = 'confetti-piece';
         piece.style.background = colors[i % colors.length];
-        piece.style.left = `${stageRect.left + Math.random() * stageRect.width}px`;
-        piece.style.top = `${stageRect.top - 10}px`;
+        piece.style.left = `${centerX + (Math.random() - 0.5) * spreadX}px`;
+        piece.style.top = `${centerY + Math.random() * spreadY}px`;
+        piece.style.setProperty('--confetti-fall', `${fallDistance}px`);
         piece.style.animationDelay = `${Math.random() * 0.4}s`;
-        piece.style.animationDuration = `${1.8 + Math.random() * 0.8}s`;
+        piece.style.animationDuration = `${duration}ms`;
+        piece.style.animationTimingFunction = 'ease-in';
+        piece.style.animationFillMode = 'forwards';
+        piece.style.animationName = 'confetti-fall';
         document.body.appendChild(piece);
-        setTimeout(() => piece.remove(), 3000);
+        setTimeout(() => piece.remove(), duration + 500);
       }
     }
 
-    function handleLoveMilk() {
-      animating = true;
-      setButtons();
-      console.log('购物车移动到节点', 5);
-      moveCartTo(5, () => {
-        spawnConfetti();
-        setPhase('done');
-        setSpeech("Terrific! Let's move on.");
-        animating = false;
-        updateStatus();
-        setButtons();
+    function showConfettiAtCart() {
+      const cartEl = document.getElementById('cartEl') || cartWrapper;
+      const rect = cartEl.getBoundingClientRect();
+      console.log('[撒花·购物车] 局部小范围, 中心:', rect.left + rect.width / 2, rect.top);
+      spawnConfetti({
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top,
+        count: 15,
+        spreadX: 100,
+        spreadY: 60,
+        fallDistance: 80,
+        duration: 1500,
+      });
+    }
+
+    function showConfettiFullScreen() {
+      const stage = document.getElementById('stage');
+      const rect = stage.getBoundingClientRect();
+      console.log('[撒花·全屏] 通关庆祝, 舞台:', rect.width, 'x', rect.height);
+      spawnConfetti({
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top,
+        count: 80,
+        spreadX: rect.width,
+        spreadY: 0,
+        fallDistance: rect.height,
+        duration: 3000,
+        colors: [
+          '#ff8c42',
+          '#ffd700',
+          '#4a6fff',
+          '#28a745',
+          '#dc3545',
+          '#ff6b9d',
+          '#9b59b6',
+        ],
       });
     }
 
@@ -1726,7 +1816,6 @@
     bindConsoleBtn(btnCorrect, handleCorrect);
     bindConsoleBtn(btnWrongR1, handleWrongR1);
     bindConsoleBtn(btnWrongR2, handleWrongR2);
-    bindConsoleBtn(btnLoveMilk, handleLoveMilk);
     bindConsoleBtn(btnReset, reset);
 
     async function boot() {
